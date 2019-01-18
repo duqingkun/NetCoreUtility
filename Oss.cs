@@ -1,5 +1,6 @@
 ﻿using Aliyun.OSS;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace AliyunHelper
@@ -106,6 +107,44 @@ namespace AliyunHelper
             {
                 throw new Exception(e.Message);
             }
+        }
+
+        public List<string> GetFileUrls(string bucketName, string folder)
+        {
+            List<string> fileUrls = new List<string>();
+            try
+            {
+                folder = folder.TrimEnd(new[] { '\\', '/' }) + "/";
+                OssClient client = new OssClient(_endPoint, _accessKeyId, _accessKeySecret);
+                ObjectListing result = null;
+                string nextMarker = string.Empty;
+                do
+                {
+                    // 每页列举的文件个数通过maxKeys指定，超过指定数将进行分页显示。
+                    var listObjectsRequest = new ListObjectsRequest(bucketName)
+                    {
+                        Prefix = folder,
+                        Marker = nextMarker,
+                        MaxKeys = 100
+                    };
+                    result = client.ListObjects(listObjectsRequest);
+                    foreach (var summary in result.ObjectSummaries)
+                    {
+                        string url = summary.Key.Remove(0, folder.Length);
+                        if (!string.IsNullOrEmpty(url))
+                        {
+                            fileUrls.Add($"{bucketName}.{_endPoint.TrimEnd(new[] { '\\', '/' })}/{summary.Key}");
+                        }
+                    }
+                    nextMarker = result.NextMarker;
+                } while (result.IsTruncated);
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.Message);
+            }
+
+            return fileUrls;
         }
     }
 }
